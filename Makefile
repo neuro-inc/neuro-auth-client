@@ -13,9 +13,9 @@ lint: format
 
 format:
 ifdef CI_LINT_RUN
-	cd ../ && pre-commit run --all-files --show-diff-on-failure
+	pre-commit run --all-files --show-diff-on-failure
 else
-	cd ../ && pre-commit run --all-files
+	pre-commit run --all-files
 endif
 
 
