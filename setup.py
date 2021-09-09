@@ -9,12 +9,8 @@ install_requires = (
 
 setup(
     name="neuro-auth-client",
-    use_scm_version={
-        "root": "..",
-        "relative_to": __file__,
-        "git_describe_command": "git describe --dirty --tags --long --match v*.*.*",
-    },
-    url="https://github.com/neuromation/platform-auth",
+    use_scm_version=True,
+    url="https://github.com/neuro-inc/neuro-auth-client",
     packages=find_packages(),
     python_requires=">=3.8",
     install_requires=install_requires,
