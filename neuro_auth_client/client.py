@@ -97,6 +97,7 @@ class AuthClient:
         token: str,
         trace_configs: Optional[List[aiohttp.TraceConfig]] = None,
     ) -> None:
+        # Empty URL and token is used for secure-less mode
         self._token = token
         headers = self._generate_headers(token)
         self._client = aiohttp.ClientSession(
@@ -117,6 +118,7 @@ class AuthClient:
         return headers
 
     def _make_url(self, path: str) -> URL:
+        assert self._url
         if path.startswith("/"):
             path = path[1:]
         return self._url / path
@@ -158,11 +160,15 @@ class AuthClient:
             resp.release()
 
     async def ping(self) -> None:
+        if not self._url:
+            return
         async with self._request("GET", "/api/v1/ping") as resp:
             txt = await resp.text()
             assert txt == "Pong"
 
     async def secured_ping(self, token: Optional[str] = None) -> None:
+        if not self._url:
+            return
         path = "/api/v1/secured-ping"
         headers = self._generate_headers(token)
         async with self._request("GET", path, headers=headers) as resp:
@@ -192,6 +198,8 @@ class AuthClient:
         return f"/api/v1/users/{name}"
 
     async def update_user(self, user: User, token: Optional[str] = None) -> None:
+        if not self._url:
+            return
         path = self._get_user_path(user.name)
         headers = self._generate_headers(token)
         payload = self._serialize_user(user)
@@ -199,6 +207,20 @@ class AuthClient:
             pass  # use context manager to release response earlier
 
     async def get_user(self, name: str, token: Optional[str] = None) -> User:
+        if not self._url:
+            return User(
+                name="user",
+                email="email@example.com",
+                clusters=[
+                    Cluster(
+                        name="default",
+                        quota=Quota(
+                            credits=None,
+                            total_running_jobs=None,
+                        ),
+                    )
+                ],
+            )
         path = self._get_user_path(name)
         headers = self._generate_headers(token)
         async with self._request("GET", path, headers=headers) as resp:
@@ -226,6 +248,8 @@ class AuthClient:
     async def check_user_permissions(
         self, name: str, permissions: Sequence[Permission], token: Optional[str] = None
     ) -> bool:
+        if not self._url:
+            return True
         missing = await self.get_missing_permissions(name, permissions, token)
         return not missing
 
@@ -233,6 +257,8 @@ class AuthClient:
         self, name: str, permissions: Sequence[Permission], token: Optional[str] = None
     ) -> Sequence[Permission]:
         assert permissions, "No permissions passed"
+        if not self._url:
+            return []
         path = self._get_user_path(name) + "/permissions/check"
         headers = self._generate_headers(token)
         payload: List[Dict[str, Any]] = [asdict(p) for p in permissions]
@@ -254,6 +280,11 @@ class AuthClient:
     async def get_permissions_tree(
         self, name: str, resource: str, depth: Optional[int] = None
     ) -> ClientSubTreeViewRoot:
+        if not self._url:
+            return ClientSubTreeViewRoot(
+                path="/default/user",
+                sub_tree=ClientAccessSubTreeView(action="manage", children={}),
+            )
         url = self._get_user_path(name) + "/permissions/tree"
         req_params: Dict[str, Any] = {"uri": resource}
         if depth is not None:
@@ -266,6 +297,8 @@ class AuthClient:
     async def grant_user_permissions(
         self, name: str, permissions: Sequence[Permission], token: Optional[str] = None
     ) -> None:
+        if not self._url:
+            return
         path = self._get_user_path(name) + "/permissions"
         headers = self._generate_headers(token)
         payload: List[Dict[str, str]] = [asdict(p) for p in permissions]
@@ -276,6 +309,8 @@ class AuthClient:
     async def revoke_user_permissions(
         self, name: str, resources_uris: Sequence[str], token: Optional[str] = None
     ) -> None:
+        if not self._url:
+            return
         path = self._get_user_path(name) + "/permissions"
         headers = self._generate_headers(token)
         params = MultiDict(("uri", uri) for uri in resources_uris)
@@ -291,6 +326,8 @@ class AuthClient:
         new_token_uri: Optional[str] = None,
         token: Optional[str] = None,
     ) -> str:
+        if not self._url:
+            return ""
         path = self._get_user_path(name) + "/token"
         headers = self._generate_headers(token)
         if new_token_uri:
