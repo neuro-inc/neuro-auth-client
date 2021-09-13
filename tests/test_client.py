@@ -1,10 +1,16 @@
 import pytest
 
 from neuro_auth_client.client import (
+    Action,
     ClientAccessSubTreeView,
     Permission,
     check_action_allowed,
 )
+
+
+class TestAction:
+    def test_str(self) -> None:
+        assert str(Action.READ) == "read"
 
 
 class TestPermission:
