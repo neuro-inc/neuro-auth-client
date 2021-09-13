@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
+from enum import Enum, unique
 from typing import Any, AsyncIterator, Dict, List, Mapping, Optional, Sequence
 
 import aiohttp
@@ -33,6 +34,19 @@ class User:
     clusters: List[Cluster] = field(default_factory=list)
 
 
+@unique
+class Action(str, Enum):
+    READ = "read"
+    WRITE = "write"
+    MANAGE = "manage"
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return self.__str__().__repr__()
+
+
 @dataclass(frozen=True)
 class Permission:
     uri: str
@@ -49,6 +63,15 @@ class Permission:
 
     def can_write(self) -> bool:
         return check_action_allowed(self.action, "write")
+
+
+@dataclass(frozen=True)
+class Role:
+    name: str
+    permissions: Sequence[Permission]
+
+    def to_role_permission(self, *, action: Action = Action.READ) -> Permission:
+        return Permission(f"role://{self.name}", action)
 
 
 @dataclass
@@ -337,6 +360,116 @@ class AuthClient:
         async with self._request("POST", path, headers=headers, json=data) as resp:
             payload = await resp.json()
             return payload["access_token"]
+
+    async def update_role(self, role: User) -> None:
+        if not self._url:
+            return
+        try:
+            await self.update_user(role)
+        except aiohttp.ClientResponseError as exc:
+            if exc.status != 404:
+                raise
+
+            await self.add_user(role)
+
+    async def grant_role_permissions(
+        self,
+        role_name: str,
+        permissions: Sequence[Permission],
+        ignore_existing_role: bool = True,
+    ) -> None:
+        assert permissions
+        if not self._url:
+            return
+        try:
+            await self.grant_user_permissions(role_name, permissions)
+        except aiohttp.ClientResponseError as exc:
+            if exc.status != 404:
+                raise
+
+            await self.add_user(User(name=role_name))
+            await self.grant_user_permissions(role_name, permissions)
+
+    async def set_role_permissions(
+        self,
+        role_name: str,
+        permissions: Sequence[Permission],
+        ignore_existing_role: bool = True,
+    ) -> None:
+        assert permissions
+        if not self._url:
+            return
+        try:
+            await self._set_user_permissions(role_name, permissions)
+        except aiohttp.ClientResponseError as exc:
+            if exc.status != 404:
+                raise
+
+            await self.add_user(User(name=role_name))
+            await self._set_user_permissions(role_name, permissions)
+
+    async def _set_user_permissions(
+        self, name: str, permissions: Sequence[Permission]
+    ) -> None:
+        path = self._get_user_path(name) + "/permissions"
+        payload: List[Dict[str, str]] = [asdict(p) for p in permissions]
+        async with self._request("PUT", path, json=payload) as resp:
+            status = resp.status
+            assert (
+                status == aiohttp.web.HTTPNoContent.status_code
+            ), f"unexpected response: {status}"
+
+    async def revoke_role_permissions(
+        self, role_name: str, permissions: Sequence[Permission]
+    ) -> None:
+        assert permissions
+        if not self._url:
+            return
+        for perm in permissions:
+            try:
+                await self.revoke_user_permissions(role_name, [perm.uri])
+            except aiohttp.ClientResponseError as exc:
+                if exc.status == 400 and exc.message == "Operation has no effect":
+                    pass
+                else:
+                    raise
+
+    async def get_permissions(
+        self, uname: str, *, expand_roles: bool = True
+    ) -> Sequence[Permission]:
+        if not self._url:
+            raise NotImplementedError("The method is not supported by Single-user mode")
+        url = self._get_user_path(uname) + "/permissions"
+        params = {}
+        if not expand_roles:
+            params["expand_roles"] = "false"
+        async with self._request("GET", url, params=params) as resp:
+            payload = await resp.json()
+            return [Permission(item["uri"], item["action"]) for item in payload]
+
+    async def add_role(self, uname: str) -> None:
+        if not self._url:
+            return
+        await self.add_user(User(name=uname))
+
+    async def remove_role(self, uname: str) -> None:
+        if not self._url:
+            return
+        url = self._get_user_path(uname)
+        try:
+            async with self._request("DELETE", url):
+                pass
+        except aiohttp.ClientResponseError as exc:
+            if exc.status != 404:
+                raise
+
+    async def delete_user(self, name: str, token: Optional[str] = None) -> None:
+        if not self._url:
+            return
+        path = self._get_user_path(name)
+        headers = self._generate_headers(token)
+        async with self._request("DELETE", path, headers=headers):
+            pass  # use context manager to release response earlier
 
 
 async def _raise_for_status(resp: aiohttp.ClientResponse) -> None:
