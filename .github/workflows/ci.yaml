@@ -62,11 +62,12 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.8.10
-    - name: Install twine
+    - name: Install dependencies
       run: |
-        pip3 install twine wheel
-    - name: Build package
-      run: python3 setup.py sdist bdist_wheel
+        python -m pip install twine build
+    - name: Make dist
+      run: |
+        python -m build
     - name: Upload package
       env:
         TWINE_USERNAME: __token__
