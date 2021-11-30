@@ -116,11 +116,14 @@ class ClientSubTreeViewRoot:
 class AuthClient:
     def __init__(
         self,
-        url: URL,
+        url: Optional[URL],
         token: str,
         trace_configs: Optional[List[aiohttp.TraceConfig]] = None,
     ) -> None:
-        # Empty URL and token is used for secure-less mode
+        if url is not None and not url:
+            raise ValueError(
+                "url argument should be http URL or None for secure-less configurations"
+            )
         self._token = token
         headers = self._generate_headers(token)
         self._client = aiohttp.ClientSession(
@@ -183,14 +186,14 @@ class AuthClient:
             resp.release()
 
     async def ping(self) -> None:
-        if not self._url:
+        if self._url is None:
             return
         async with self._request("GET", "/api/v1/ping") as resp:
             txt = await resp.text()
             assert txt == "Pong"
 
     async def secured_ping(self, token: Optional[str] = None) -> None:
-        if not self._url:
+        if self._url is None:
             return
         path = "/api/v1/secured-ping"
         headers = self._generate_headers(token)
@@ -221,7 +224,7 @@ class AuthClient:
         return f"/api/v1/users/{name}"
 
     async def update_user(self, user: User, token: Optional[str] = None) -> None:
-        if not self._url:
+        if self._url is None:
             return
         path = self._get_user_path(user.name)
         headers = self._generate_headers(token)
@@ -230,7 +233,7 @@ class AuthClient:
             pass  # use context manager to release response earlier
 
     async def get_user(self, name: str, token: Optional[str] = None) -> User:
-        if not self._url:
+        if self._url is None:
             return User(
                 name="user",
                 email="email@example.com",
@@ -271,7 +274,7 @@ class AuthClient:
     async def check_user_permissions(
         self, name: str, permissions: Sequence[Permission], token: Optional[str] = None
     ) -> bool:
-        if not self._url:
+        if self._url is None:
             return True
         missing = await self.get_missing_permissions(name, permissions, token)
         return not missing
@@ -280,7 +283,7 @@ class AuthClient:
         self, name: str, permissions: Sequence[Permission], token: Optional[str] = None
     ) -> Sequence[Permission]:
         assert permissions, "No permissions passed"
-        if not self._url:
+        if self._url is None:
             return []
         path = self._get_user_path(name) + "/permissions/check"
         headers = self._generate_headers(token)
@@ -303,7 +306,7 @@ class AuthClient:
     async def get_permissions_tree(
         self, name: str, resource: str, depth: Optional[int] = None
     ) -> ClientSubTreeViewRoot:
-        if not self._url:
+        if self._url is None:
             return ClientSubTreeViewRoot(
                 path="/default/user",
                 sub_tree=ClientAccessSubTreeView(action="manage", children={}),
@@ -320,7 +323,7 @@ class AuthClient:
     async def grant_user_permissions(
         self, name: str, permissions: Sequence[Permission], token: Optional[str] = None
     ) -> None:
-        if not self._url:
+        if self._url is None:
             return
         path = self._get_user_path(name) + "/permissions"
         headers = self._generate_headers(token)
@@ -332,7 +335,7 @@ class AuthClient:
     async def revoke_user_permissions(
         self, name: str, resources_uris: Sequence[str], token: Optional[str] = None
     ) -> None:
-        if not self._url:
+        if self._url is None:
             return
         path = self._get_user_path(name) + "/permissions"
         headers = self._generate_headers(token)
@@ -349,7 +352,7 @@ class AuthClient:
         new_token_uri: Optional[str] = None,
         token: Optional[str] = None,
     ) -> str:
-        if not self._url:
+        if self._url is None:
             return ""
         path = self._get_user_path(name) + "/token"
         headers = self._generate_headers(token)
@@ -362,7 +365,7 @@ class AuthClient:
             return payload["access_token"]
 
     async def update_role(self, role: User) -> None:
-        if not self._url:
+        if self._url is None:
             return
         try:
             await self.update_user(role)
@@ -379,7 +382,7 @@ class AuthClient:
         ignore_existing_role: bool = True,
     ) -> None:
         assert permissions
-        if not self._url:
+        if self._url is None:
             return
         try:
             await self.grant_user_permissions(role_name, permissions)
@@ -397,7 +400,7 @@ class AuthClient:
         ignore_existing_role: bool = True,
     ) -> None:
         assert permissions
-        if not self._url:
+        if self._url is None:
             return
         try:
             await self._set_user_permissions(role_name, permissions)
@@ -423,7 +426,7 @@ class AuthClient:
         self, role_name: str, permissions: Sequence[Permission]
     ) -> None:
         assert permissions
-        if not self._url:
+        if self._url is None:
             return
         for perm in permissions:
             try:
@@ -437,7 +440,7 @@ class AuthClient:
     async def get_permissions(
         self, uname: str, *, expand_roles: bool = True
     ) -> Sequence[Permission]:
-        if not self._url:
+        if self._url is None:
             raise NotImplementedError("The method is not supported by Single-user mode")
         url = self._get_user_path(uname) + "/permissions"
         params = {}
@@ -448,12 +451,12 @@ class AuthClient:
             return [Permission(item["uri"], item["action"]) for item in payload]
 
     async def add_role(self, uname: str) -> None:
-        if not self._url:
+        if self._url is None:
             return
         await self.add_user(User(name=uname))
 
     async def remove_role(self, uname: str) -> None:
-        if not self._url:
+        if self._url is None:
             return
         url = self._get_user_path(uname)
         try:
@@ -464,7 +467,7 @@ class AuthClient:
                 raise
 
     async def delete_user(self, name: str, token: Optional[str] = None) -> None:
-        if not self._url:
+        if self._url is None:
             return
         path = self._get_user_path(name)
         headers = self._generate_headers(token)
