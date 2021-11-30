@@ -1,7 +1,9 @@
 import pytest
+from yarl import URL
 
 from neuro_auth_client.client import (
     Action,
+    AuthClient,
     ClientAccessSubTreeView,
     Permission,
     check_action_allowed,
@@ -101,3 +103,17 @@ class TestUtils:
             assert check_action_allowed("read", "create")
         with pytest.raises(ValueError, match="forbid"):
             assert check_action_allowed("forbid", "read")
+
+
+class TestClient:
+    async def test_https_url(self) -> None:
+        async with AuthClient(URL("https://example.com"), "<token>") as client:
+            assert client._url == URL("https://example.com")
+
+    async def test_null_url(self) -> None:
+        async with AuthClient(None, "<token>") as client:
+            assert client._url is None
+
+    async def test_empty_url(self) -> None:
+        with pytest.raises(ValueError):
+            AuthClient(URL(), "<token>")
