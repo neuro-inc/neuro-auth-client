@@ -103,14 +103,41 @@ class ClientAccessSubTreeView:
 
 @dataclass
 class ClientSubTreeViewRoot:
+    scheme: str
     path: str
     sub_tree: ClientAccessSubTreeView
 
+    def allows(self, perm: Permission) -> bool:
+        perm_uri = URL(perm.uri)
+        if perm_uri.scheme != self.scheme:
+            return False
+        perm_uri_no_scheme = (perm_uri.host or "") + perm_uri.path
+        path_no_leading_slash = self.path.lstrip("/")
+        if not perm_uri_no_scheme.startswith(path_no_leading_slash):
+            return False
+        perm_uri_no_common_path = perm_uri_no_scheme[
+            len(path_no_leading_slash) :  # noqa
+        ]
+        if not perm_uri_no_common_path.startswith("/"):
+            return False
+        # [1:] to skip first "/":
+        parts = perm_uri_no_common_path[1:].split("/")
+        node = self.sub_tree
+        for part in parts:
+            if node.check_action_allowed(perm.action):
+                return True
+            if part not in node.children:
+                return False
+            node = node.children[part]
+        return node.check_action_allowed(perm.action)
+
     @classmethod
-    def _from_json(cls, json_as_dict: Dict[str, Any]) -> "ClientSubTreeViewRoot":
+    def _from_json(
+        cls, scheme: str, json_as_dict: Dict[str, Any]
+    ) -> "ClientSubTreeViewRoot":
         subtree_path = json_as_dict["path"]
         sub_tree = ClientAccessSubTreeView._from_json(json_as_dict)
-        return ClientSubTreeViewRoot(subtree_path, sub_tree)
+        return ClientSubTreeViewRoot(scheme, subtree_path, sub_tree)
 
 
 class AuthClient:
@@ -308,6 +335,7 @@ class AuthClient:
     ) -> ClientSubTreeViewRoot:
         if self._url is None:
             return ClientSubTreeViewRoot(
+                scheme=URL(resource).scheme,
                 path="/default/user",
                 sub_tree=ClientAccessSubTreeView(action="manage", children={}),
             )
@@ -317,7 +345,7 @@ class AuthClient:
             req_params["depth"] = depth
         async with self._request("GET", url, params=req_params) as resp:
             payload = await resp.json()
-            tree = ClientSubTreeViewRoot._from_json(payload)
+            tree = ClientSubTreeViewRoot._from_json(URL(resource).scheme, payload)
             return tree
 
     async def grant_user_permissions(
