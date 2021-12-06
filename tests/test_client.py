@@ -96,6 +96,50 @@ class TestTree:
         ]:
             assert result == tree.allows(perm), perm
 
+    def test_tree_contains_permissions_empty_path(self) -> None:
+        tree = ClientSubTreeViewRoot._from_json(
+            "storage",
+            {
+                "path": "/",
+                "action": "list",
+                "children": {
+                    "test1": {
+                        "action": "write",
+                        "children": {},
+                    },
+                    "test2": {
+                        "action": "read",
+                        "children": {},
+                    },
+                    "test3": {
+                        "action": "list",
+                        "children": {
+                            "subpath": {
+                                "action": "write",
+                                "children": {},
+                            }
+                        },
+                    },
+                },
+            },
+        )
+        for result, perm in [
+            (True, Permission("storage://test1", "write")),
+            (True, Permission("storage://test2", "read")),
+            (True, Permission("storage://test2", "read")),
+            (True, Permission("storage://test3/subpath", "write")),
+            (
+                True,
+                Permission("storage://test1/very/deep/subpath", "write"),
+            ),
+            (True, Permission("storage://test2/very/deep/subpath", "read")),
+            (False, Permission("storage://test4", "read")),
+            (False, Permission("storage://test2", "write")),
+            (False, Permission("storage://test3/another", "read")),
+            (False, Permission("blob://test1", "write")),
+        ]:
+            assert result == tree.allows(perm), perm
+
     def test_can_list(self) -> None:
         assert not ClientAccessSubTreeView("deny", {}).can_list()
         assert ClientAccessSubTreeView("list", {}).can_list()

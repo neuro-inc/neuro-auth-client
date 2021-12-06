@@ -118,10 +118,12 @@ class ClientSubTreeViewRoot:
         perm_uri_no_common_path = perm_uri_no_scheme[
             len(path_no_leading_slash) :  # noqa
         ]
-        if not perm_uri_no_common_path.startswith("/"):
-            return False
-        # [1:] to skip first "/":
-        parts = perm_uri_no_common_path[1:].split("/")
+        if path_no_leading_slash:
+            if not perm_uri_no_common_path.startswith("/"):
+                return False
+            # [1:] to skip first "/":
+            perm_uri_no_common_path = perm_uri_no_common_path[1:]
+        parts = perm_uri_no_common_path.split("/")
         node = self.sub_tree
         for part in parts:
             if node.check_action_allowed(perm.action):
