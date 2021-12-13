@@ -96,6 +96,51 @@ class TestTree:
         ]:
             assert result == tree.allows(perm), perm
 
+    def test_tree_contains_permissions_2(self) -> None:
+        tree = ClientSubTreeViewRoot._from_json(
+            "storage",
+            {
+                "path": "/cluster/",
+                "action": "list",
+                "children": {
+                    "username1": {
+                        "action": "write",
+                        "children": {},
+                    },
+                    "username2": {
+                        "action": "read",
+                        "children": {},
+                    },
+                    "username3": {
+                        "action": "list",
+                        "children": {
+                            "subpath": {
+                                "action": "write",
+                                "children": {},
+                            }
+                        },
+                    },
+                },
+            },
+        )
+        for result, perm in [
+            (True, Permission("storage://cluster/username1", "write")),
+            (True, Permission("storage://cluster/username1", "read")),
+            (True, Permission("storage://cluster/username2", "read")),
+            (True, Permission("storage://cluster/username3/subpath", "write")),
+            (
+                True,
+                Permission("storage://cluster/username1/very/deep/subpath", "write"),
+            ),
+            (True, Permission("storage://cluster/username2/very/deep/subpath", "read")),
+            (False, Permission("storage://cluster/username4", "read")),
+            (False, Permission("storage://cluster/username2", "write")),
+            (False, Permission("storage://cluster/username3/another", "read")),
+            (False, Permission("storage://cluster2", "list")),
+            (False, Permission("blob://cluster/username1", "write")),
+        ]:
+            assert result == tree.allows(perm), perm
+
     def test_tree_contains_permissions_empty_path(self) -> None:
         tree = ClientSubTreeViewRoot._from_json(
             "storage",

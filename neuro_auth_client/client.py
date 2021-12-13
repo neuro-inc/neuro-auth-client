@@ -112,13 +112,11 @@ class ClientSubTreeViewRoot:
         if perm_uri.scheme != self.scheme:
             return False
         perm_uri_no_scheme = (perm_uri.host or "") + perm_uri.path
-        path_no_leading_slash = self.path.lstrip("/")
-        if not perm_uri_no_scheme.startswith(path_no_leading_slash):
+        path_no_slash = self.path.lstrip("/").rstrip("/")
+        if not perm_uri_no_scheme.startswith(path_no_slash):
             return False
-        perm_uri_no_common_path = perm_uri_no_scheme[
-            len(path_no_leading_slash) :  # noqa
-        ]
-        if path_no_leading_slash:
+        perm_uri_no_common_path = perm_uri_no_scheme[len(path_no_slash) :]  # noqa
+        if path_no_slash:
             if not perm_uri_no_common_path.startswith("/"):
                 return False
             # [1:] to skip first "/":
