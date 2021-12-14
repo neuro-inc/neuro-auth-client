@@ -111,6 +111,11 @@ async def setup_security(
     auth_client: AuthClient,
     auth_scheme: AuthScheme = AuthScheme.BEARER,
 ) -> None:  # pragma: no cover
-    identity_policy = IdentityPolicy(auth_scheme=auth_scheme)
+    if auth_client.is_anonymous_access_allowed:
+        identity_policy = IdentityPolicy(
+            auth_scheme=auth_scheme, default_identity="user"
+        )
+    else:
+        identity_policy = IdentityPolicy(auth_scheme=auth_scheme)
     auth_policy = AuthPolicy(auth_client=auth_client)
     setup(app, identity_policy, auth_policy)
