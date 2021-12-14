@@ -23,14 +23,19 @@ class AuthScheme(str, Enum):
 
 
 class IdentityPolicy(AbstractIdentityPolicy):
-    def __init__(self, auth_scheme: AuthScheme = AuthScheme.BEARER) -> None:
+    def __init__(
+        self,
+        auth_scheme: AuthScheme = AuthScheme.BEARER,
+        default_identity: Optional[str] = None,
+    ) -> None:
         self._auth_scheme = auth_scheme
+        self._default_identity = default_identity
 
     async def identify(self, request: Request) -> Optional[str]:
         auth_header_value = request.headers.get(AUTHORIZATION)
 
         if auth_header_value is None:
-            return None
+            return self._default_identity
 
         if self._auth_scheme == AuthScheme.BASIC:
             identity = BasicAuth.decode(auth_header_value).password
@@ -53,6 +58,9 @@ class AuthPolicy(AbstractAuthorizationPolicy):
         self._auth_client = auth_client
 
     def get_user_name_from_identity(self, identity: str) -> Optional[str]:
+        if self._auth_client.is_anonymous_allowed:
+            return "user"
+
         try:
             claims = jwt.get_unverified_claims(identity)
             for identity_claim in JWT_IDENTITY_CLAIM_OPTIONS:
