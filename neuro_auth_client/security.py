@@ -58,7 +58,7 @@ class AuthPolicy(AbstractAuthorizationPolicy):
         self._auth_client = auth_client
 
     def get_user_name_from_identity(self, identity: str) -> Optional[str]:
-        if self._auth_client.is_anonymous_allowed:
+        if self._auth_client.is_anonymous_access_allowed:
             return "user"
 
         try:

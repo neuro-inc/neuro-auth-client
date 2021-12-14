@@ -213,7 +213,7 @@ class AuthClient:
             resp.release()
 
     @property
-    def is_anonymous_allowed(self) -> bool:
+    def is_anonymous_access_allowed(self) -> bool:
         return self._url is None
 
     async def ping(self) -> None:
