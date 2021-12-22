@@ -7,7 +7,6 @@ from aiohttp_security.api import AUTZ_KEY
 
 from .client import Permission
 
-
 logger = logging.getLogger(__name__)
 
 

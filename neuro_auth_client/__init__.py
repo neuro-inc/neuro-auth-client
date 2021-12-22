@@ -14,7 +14,6 @@ from .client import (
     User,
 )
 
-
 __all__ = [
     "Action",
     "AuthClient",

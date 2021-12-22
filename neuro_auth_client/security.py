@@ -13,7 +13,6 @@ from jose.exceptions import JWTError
 from .bearer_auth import BearerAuth
 from .client import AuthClient, Permission, User
 
-
 JWT_IDENTITY_CLAIM = "https://platform.neuromation.io/user"
 JWT_IDENTITY_CLAIM_OPTIONS = ("identity", JWT_IDENTITY_CLAIM)
 
