@@ -28,12 +28,12 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.8.10
+        python-version: 3.9.9
     - name: Cache packages
       uses: actions/cache@v2.1.7
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.8.10-${{ hashFiles('requirements-dev.txt') }}-${{
+        key: ${{ runner.os }}-py-3.9.9-${{ hashFiles('requirements-dev.txt') }}-${{
           hashFiles('setup.py') }}
     - name: Install dependencies
       run: make setup
@@ -63,7 +63,7 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.8.10
+        python-version: 3.9.9
     - name: Install dependencies
       run: |
         python -m pip install twine build
