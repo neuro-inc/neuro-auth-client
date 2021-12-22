@@ -1,5 +1,5 @@
 """Neuromation auth client."""
-from pkg_resources import get_distribution
+from importlib.metadata import version
 
 from .api import check_permissions
 from .client import (
@@ -27,4 +27,4 @@ __all__ = [
     "User",
     "check_permissions",
 ]
-__version__ = get_distribution(__name__).version
+__version__ = version(__package__)

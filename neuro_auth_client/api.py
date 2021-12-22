@@ -1,6 +1,5 @@
 import json
 import logging
-from typing import Dict, List
 
 from aiohttp import ClientError, web
 from aiohttp_security import check_authorized
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 async def check_permissions(
-    request: web.Request, permissions: List[Permission]
+    request: web.Request, permissions: list[Permission]
 ) -> None:
     user_name = await check_authorized(request)
     auth_policy = request.config_dict.get(AUTZ_KEY)
@@ -33,5 +32,5 @@ async def check_permissions(
         )
 
 
-def _permission_to_primitive(perm: Permission) -> Dict[str, str]:
+def _permission_to_primitive(perm: Permission) -> dict[str, str]:
     return {"uri": perm.uri, "action": perm.action}

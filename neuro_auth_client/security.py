@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from enum import Enum
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 
 from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.hdrs import AUTHORIZATION

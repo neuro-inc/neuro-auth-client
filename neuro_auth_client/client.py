@@ -1,9 +1,10 @@
 import asyncio
+from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from enum import Enum, unique
-from typing import Any, AsyncIterator, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Optional
 
 import aiohttp
 from aiohttp.hdrs import AUTHORIZATION
@@ -31,7 +32,7 @@ class User:
     name: str
     email: Optional[str] = None
     # TODO (ajuszkowsi, March 2019) support "is_disabled" field
-    clusters: List[Cluster] = field(default_factory=list)
+    clusters: list[Cluster] = field(default_factory=list)
 
 
 @unique
@@ -77,10 +78,10 @@ class Role:
 @dataclass
 class ClientAccessSubTreeView:
     action: str
-    children: Dict[str, "ClientAccessSubTreeView"]
+    children: dict[str, "ClientAccessSubTreeView"]
 
     @classmethod
-    def _from_json(cls, json_as_dict: Dict[str, Any]) -> "ClientAccessSubTreeView":
+    def _from_json(cls, json_as_dict: dict[str, Any]) -> "ClientAccessSubTreeView":
         action = json_as_dict["action"]
         children = {
             name: ClientAccessSubTreeView._from_json(tree)
@@ -133,7 +134,7 @@ class ClientSubTreeViewRoot:
 
     @classmethod
     def _from_json(
-        cls, scheme: str, json_as_dict: Dict[str, Any]
+        cls, scheme: str, json_as_dict: dict[str, Any]
     ) -> "ClientSubTreeViewRoot":
         subtree_path = json_as_dict["path"]
         sub_tree = ClientAccessSubTreeView._from_json(json_as_dict)
@@ -145,7 +146,7 @@ class AuthClient:
         self,
         url: Optional[URL],
         token: str,
-        trace_configs: Optional[List[aiohttp.TraceConfig]] = None,
+        trace_configs: Optional[list[aiohttp.TraceConfig]] = None,
     ) -> None:
         if url is not None and not url:
             raise ValueError(
@@ -176,8 +177,8 @@ class AuthClient:
             path = path[1:]
         return self._url / path
 
-    def _serialize_quota(self, quota: Quota) -> Dict[str, Any]:
-        result: Dict[str, Any] = {}
+    def _serialize_quota(self, quota: Quota) -> dict[str, Any]:
+        result: dict[str, Any] = {}
         q_running_jobs = quota.total_running_jobs
         if q_running_jobs is not None:
             result["total_running_jobs"] = q_running_jobs
@@ -232,15 +233,15 @@ class AuthClient:
             txt = await resp.text()
             assert txt == "Secured Pong"
 
-    def _serialize_user(self, user: User) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {"name": user.name}
+    def _serialize_user(self, user: User) -> dict[str, Any]:
+        payload: dict[str, Any] = {"name": user.name}
         if user.clusters:
             payload["clusters"] = [self._serialize_cluster(c) for c in user.clusters]
         if user.email:
             payload["email"] = user.email
         return payload
 
-    def _serialize_cluster(self, cluster: Cluster) -> Dict[str, Any]:
+    def _serialize_cluster(self, cluster: Cluster) -> dict[str, Any]:
         return {"name": cluster.name, "quota": self._serialize_quota(cluster.quota)}
 
     async def add_user(self, user: User, token: Optional[str] = None) -> None:
@@ -290,7 +291,7 @@ class AuthClient:
                 ],
             )
 
-    def _deserialize_cluster(self, payload: Dict[str, Any]) -> Cluster:
+    def _deserialize_cluster(self, payload: dict[str, Any]) -> Cluster:
         quota_payload = payload.get("quota", {})
         credits = quota_payload.get("credits")
         if credits is not None:
@@ -318,7 +319,7 @@ class AuthClient:
             return []
         path = self._get_user_path(name) + "/permissions/check"
         headers = self._generate_headers(token)
-        payload: List[Dict[str, Any]] = [asdict(p) for p in permissions]
+        payload: list[dict[str, Any]] = [asdict(p) for p in permissions]
         async with self._request(
             "POST", path, headers=headers, json=payload, raise_for_status=False
         ) as resp:
@@ -331,7 +332,7 @@ class AuthClient:
 
             return [self._permission_from_primitive(p) for p in data["missing"]]
 
-    def _permission_from_primitive(self, perm: Dict[str, str]) -> Permission:
+    def _permission_from_primitive(self, perm: dict[str, str]) -> Permission:
         return Permission(uri=perm["uri"], action=perm["action"])
 
     async def get_permissions_tree(
@@ -344,7 +345,7 @@ class AuthClient:
                 sub_tree=ClientAccessSubTreeView(action="manage", children={}),
             )
         url = self._get_user_path(name) + "/permissions/tree"
-        req_params: Dict[str, Any] = {"uri": resource}
+        req_params: dict[str, Any] = {"uri": resource}
         if depth is not None:
             req_params["depth"] = depth
         async with self._request("GET", url, params=req_params) as resp:
@@ -359,7 +360,7 @@ class AuthClient:
             return
         path = self._get_user_path(name) + "/permissions"
         headers = self._generate_headers(token)
-        payload: List[Dict[str, str]] = [asdict(p) for p in permissions]
+        payload: list[dict[str, str]] = [asdict(p) for p in permissions]
         async with self._request("POST", path, headers=headers, json=payload) as resp:
             status = resp.status
             assert status == HTTPCreated.status_code, f"unexpected response: {status}"
@@ -447,7 +448,7 @@ class AuthClient:
         self, name: str, permissions: Sequence[Permission]
     ) -> None:
         path = self._get_user_path(name) + "/permissions"
-        payload: List[Dict[str, str]] = [asdict(p) for p in permissions]
+        payload: list[dict[str, str]] = [asdict(p) for p in permissions]
         async with self._request("PUT", path, json=payload) as resp:
             status = resp.status
             assert (
