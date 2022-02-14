@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from enum import Enum, unique
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import aiohttp
 from aiohttp.hdrs import AUTHORIZATION
@@ -304,7 +304,10 @@ class AuthClient:
         return Cluster(name=payload["name"], quota=quota)
 
     async def check_user_permissions(
-        self, name: str, permissions: Sequence[Permission], token: Optional[str] = None
+        self,
+        name: str,
+        permissions: Sequence[Union[Permission, Sequence[Permission]]],
+        token: Optional[str] = None,
     ) -> bool:
         if self._url is None:
             return True
@@ -312,14 +315,25 @@ class AuthClient:
         return not missing
 
     async def get_missing_permissions(
-        self, name: str, permissions: Sequence[Permission], token: Optional[str] = None
+        self,
+        name: str,
+        permissions: Sequence[Union[Permission, Sequence[Permission]]],
+        token: Optional[str] = None,
     ) -> Sequence[Permission]:
         assert permissions, "No permissions passed"
         if self._url is None:
             return []
         path = self._get_user_path(name) + "/permissions/check"
         headers = self._generate_headers(token)
-        payload: list[dict[str, Any]] = [asdict(p) for p in permissions]
+        payload: list[dict[str, Any]] = []
+        has_alternatives = False
+        for p in permissions:
+            if isinstance(p, Permission):
+                payload.append(asdict(p))
+            else:
+                has_alternatives = True
+                for p2 in p:
+                    payload.append(asdict(p2))
         async with self._request(
             "POST", path, headers=headers, json=payload, raise_for_status=False
         ) as resp:
@@ -330,7 +344,19 @@ class AuthClient:
                 assert resp.status == 403, f"unexpected response {resp.status}: {data}"
                 await _raise_for_status(resp)
 
-            return [self._permission_from_primitive(p) for p in data["missing"]]
+            missing = [self._permission_from_primitive(p) for p in data["missing"]]
+        if not missing or not has_alternatives:
+            return missing
+        optional: set[Permission] = set()
+        for p in permissions:
+            if not isinstance(p, Permission):
+                if all(p2 in missing for p2 in p):
+                    optional.update(p)
+        if optional:
+            for p in permissions:
+                if isinstance(p, Permission):
+                    optional.discard(p)
+        return [p for p in missing if p not in optional]
 
     def _permission_from_primitive(self, perm: dict[str, str]) -> Permission:
         return Permission(uri=perm["uri"], action=perm["action"])
