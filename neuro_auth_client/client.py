@@ -347,16 +347,14 @@ class AuthClient:
             missing = [self._permission_from_primitive(p) for p in data["missing"]]
         if not missing or not has_alternatives:
             return missing
-        optional: set[Permission] = set()
+        required: set[Permission] = set()
         for p in permissions:
             if not isinstance(p, Permission):
                 if all(p2 in missing for p2 in p):
-                    optional.update(p)
-        if optional:
-            for p in permissions:
-                if isinstance(p, Permission):
-                    optional.discard(p)
-        return [p for p in missing if p not in optional]
+                    required.update(p)
+            else:
+                required.add(p)
+        return [p for p in missing if p in required]
 
     def _permission_from_primitive(self, perm: dict[str, str]) -> Permission:
         return Permission(uri=perm["uri"], action=perm["action"])
