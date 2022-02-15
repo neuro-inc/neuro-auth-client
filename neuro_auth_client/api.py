@@ -1,5 +1,7 @@
 import json
 import logging
+from collections.abc import Sequence
+from typing import Union
 
 from aiohttp import ClientError, web
 from aiohttp_security import check_authorized
@@ -11,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 async def check_permissions(
-    request: web.Request, permissions: list[Permission]
+    request: web.Request, permissions: Sequence[Union[Permission, Sequence[Permission]]]
 ) -> None:
     user_name = await check_authorized(request)
     auth_policy = request.config_dict.get(AUTZ_KEY)

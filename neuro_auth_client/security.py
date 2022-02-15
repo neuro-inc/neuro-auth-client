@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.hdrs import AUTHORIZATION
@@ -93,7 +93,10 @@ class AuthPolicy(AbstractAuthorizationPolicy):
         return None
 
     async def permits(
-        self, identity: str, _: str, context: Sequence[Permission]
+        self,
+        identity: str,
+        _: str,
+        context: Sequence[Union[Permission, Sequence[Permission]]],
     ) -> bool:
         name = self.get_user_name_from_identity(identity)
         if not name:
@@ -101,7 +104,9 @@ class AuthPolicy(AbstractAuthorizationPolicy):
         return await self._auth_client.check_user_permissions(name, context)
 
     async def get_missing_permissions(
-        self, user_name: str, permissions: Sequence[Permission]
+        self,
+        user_name: str,
+        permissions: Sequence[Union[Permission, Sequence[Permission]]],
     ) -> Sequence[Permission]:
         return await self._auth_client.get_missing_permissions(user_name, permissions)
 
