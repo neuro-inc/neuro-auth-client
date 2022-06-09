@@ -1,8 +1,7 @@
 import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, field
-from decimal import Decimal
+from dataclasses import asdict, dataclass
 from enum import Enum, unique
 from typing import Any, Optional, Union
 
@@ -16,23 +15,9 @@ from .bearer_auth import BearerAuth
 
 
 @dataclass(frozen=True)
-class Quota:
-    credits: Optional[Decimal] = None
-    total_running_jobs: Optional[int] = None
-
-
-@dataclass(frozen=True)
-class Cluster:
-    name: str
-    quota: Quota = field(default_factory=Quota)
-
-
-@dataclass(frozen=True)
 class User:
     name: str
-    email: Optional[str] = None
     # TODO (ajuszkowsi, March 2019) support "is_disabled" field
-    clusters: list[Cluster] = field(default_factory=list)
 
 
 @unique
@@ -177,16 +162,6 @@ class AuthClient:
             path = path[1:]
         return self._url / path
 
-    def _serialize_quota(self, quota: Quota) -> dict[str, Any]:
-        result: dict[str, Any] = {}
-        q_running_jobs = quota.total_running_jobs
-        if q_running_jobs is not None:
-            result["total_running_jobs"] = q_running_jobs
-        credits = quota.credits
-        if credits is not None:
-            result["credits"] = str(credits)
-        return result
-
     async def close(self) -> None:
         await self._client.close()
 
@@ -234,15 +209,7 @@ class AuthClient:
             assert txt == "Secured Pong"
 
     def _serialize_user(self, user: User) -> dict[str, Any]:
-        payload: dict[str, Any] = {"name": user.name}
-        if user.clusters:
-            payload["clusters"] = [self._serialize_cluster(c) for c in user.clusters]
-        if user.email:
-            payload["email"] = user.email
-        return payload
-
-    def _serialize_cluster(self, cluster: Cluster) -> dict[str, Any]:
-        return {"name": cluster.name, "quota": self._serialize_quota(cluster.quota)}
+        return {"name": user.name}
 
     async def add_user(self, user: User, token: Optional[str] = None) -> None:
         path = "/api/v1/users"
@@ -255,53 +222,14 @@ class AuthClient:
         name = name.replace("/", ":")
         return f"/api/v1/users/{name}"
 
-    async def update_user(self, user: User, token: Optional[str] = None) -> None:
-        if self._url is None:
-            return
-        path = self._get_user_path(user.name)
-        headers = self._generate_headers(token)
-        payload = self._serialize_user(user)
-        async with self._request("PUT", path, headers=headers, json=payload):
-            pass  # use context manager to release response earlier
-
     async def get_user(self, name: str, token: Optional[str] = None) -> User:
         if self._url is None:
-            return User(
-                name="user",
-                email="email@example.com",
-                clusters=[
-                    Cluster(
-                        name="default",
-                        quota=Quota(
-                            credits=None,
-                            total_running_jobs=None,
-                        ),
-                    )
-                ],
-            )
+            return User(name="user")
         path = self._get_user_path(name)
         headers = self._generate_headers(token)
         async with self._request("GET", path, headers=headers) as resp:
             payload = await resp.json()
-            return User(
-                name=payload["name"],
-                email=payload.get("email"),
-                clusters=[
-                    self._deserialize_cluster(c) for c in payload.get("clusters", [])
-                ],
-            )
-
-    def _deserialize_cluster(self, payload: dict[str, Any]) -> Cluster:
-        quota_payload = payload.get("quota", {})
-        credits = quota_payload.get("credits")
-        if credits is not None:
-            credits = Decimal(credits)
-        quota_jobs = quota_payload.get("total_running_jobs")
-        quota = Quota(
-            credits=credits,
-            total_running_jobs=quota_jobs,
-        )
-        return Cluster(name=payload["name"], quota=quota)
+            return User(name=payload["name"])
 
     async def check_user_permissions(
         self,
@@ -420,17 +348,6 @@ class AuthClient:
         async with self._request("POST", path, headers=headers, json=data) as resp:
             payload = await resp.json()
             return payload["access_token"]
-
-    async def update_role(self, role: User) -> None:
-        if self._url is None:
-            return
-        try:
-            await self.update_user(role)
-        except aiohttp.ClientResponseError as exc:
-            if exc.status != 404:
-                raise
-
-            await self.add_user(role)
 
     async def grant_role_permissions(
         self,
