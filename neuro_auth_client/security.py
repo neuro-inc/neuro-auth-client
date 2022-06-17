@@ -16,6 +16,8 @@ from .client import AuthClient, Permission, User
 JWT_IDENTITY_CLAIM = "https://platform.neuromation.io/user"
 JWT_IDENTITY_CLAIM_OPTIONS = ("identity", JWT_IDENTITY_CLAIM)
 
+NEURO_AUTH_TOKEN_QUERY_PARAM = "neuro-auth-token"
+
 
 class AuthScheme(str, Enum):
     BASIC = "basic"
@@ -33,9 +35,10 @@ class IdentityPolicy(AbstractIdentityPolicy):
 
     async def identify(self, request: Request) -> Optional[str]:
         auth_header_value = request.headers.get(AUTHORIZATION)
+        auth_query_identity = request.query.get(NEURO_AUTH_TOKEN_QUERY_PARAM)
 
         if auth_header_value is None:
-            return self._default_identity
+            return auth_query_identity or self._default_identity
 
         if self._auth_scheme == AuthScheme.BASIC:
             identity = BasicAuth.decode(auth_header_value).password
