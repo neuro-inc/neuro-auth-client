@@ -1,4 +1,5 @@
 """Neuromation auth client."""
+
 from importlib.metadata import version
 
 from .api import check_permissions

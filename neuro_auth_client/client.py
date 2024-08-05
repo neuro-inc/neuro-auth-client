@@ -151,7 +151,7 @@ class AuthClient:
         await self.close()
 
     def _generate_headers(self, token: Optional[str] = None) -> "CIMultiDict[str]":
-        headers: "CIMultiDict[str]" = CIMultiDict()
+        headers: CIMultiDict[str] = CIMultiDict()
         if token:
             headers[AUTHORIZATION] = BearerAuth(token).encode()
         return headers
@@ -342,9 +342,9 @@ class AuthClient:
         path = self._get_user_path(name) + "/token"
         headers = self._generate_headers(token)
         if new_token_uri:
-            data = dict(uri=new_token_uri)
+            data = {"uri": new_token_uri}
         else:
-            data = dict()
+            data = {}
         async with self._request("POST", path, headers=headers, json=data) as resp:
             payload = await resp.json()
             return payload["access_token"]
