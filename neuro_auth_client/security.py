@@ -5,7 +5,7 @@ from typing import Any, Optional, Union
 from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.hdrs import AUTHORIZATION, SEC_WEBSOCKET_PROTOCOL
 from aiohttp.helpers import BasicAuth
-from aiohttp.web import Application, Request, Response
+from aiohttp.web import Application, Request, StreamResponse
 from aiohttp_security import AbstractAuthorizationPolicy, AbstractIdentityPolicy, setup
 from jose import jwt
 from jose.exceptions import JWTError
@@ -59,7 +59,7 @@ class IdentityPolicy(AbstractIdentityPolicy):
         pass
 
     async def forget(
-        self, request: Request, response: Response
+        self, request: Request, response: StreamResponse
     ) -> None:  # pragma: no cover
         pass
 
@@ -68,8 +68,8 @@ class AuthPolicy(AbstractAuthorizationPolicy):
     def __init__(self, auth_client: AuthClient) -> None:
         self._auth_client = auth_client
 
-    def get_user_name_from_identity(self, identity: str) -> Optional[str]:
-        if self._auth_client.is_anonymous_access_allowed:
+    def get_user_name_from_identity(self, identity: str | None) -> Optional[str]:
+        if identity is None or self._auth_client.is_anonymous_access_allowed:
             return "user"
 
         try:
@@ -105,9 +105,9 @@ class AuthPolicy(AbstractAuthorizationPolicy):
 
     async def permits(
         self,
-        identity: str,
-        _: str,
-        context: Sequence[Union[Permission, Sequence[Permission]]],
+        identity: str | None,
+        permission: str | Enum,
+        context: Any = None,
     ) -> bool:
         name = self.get_user_name_from_identity(identity)
         if not name:

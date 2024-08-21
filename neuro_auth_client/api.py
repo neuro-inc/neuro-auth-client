@@ -8,6 +8,7 @@ from aiohttp_security import check_authorized
 from aiohttp_security.api import AUTZ_KEY
 
 from .client import Permission
+from .security import AuthPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ async def check_permissions(
     auth_policy = request.config_dict.get(AUTZ_KEY)
     if not auth_policy:
         raise RuntimeError("Auth policy not configured")
+    assert isinstance(auth_policy, AuthPolicy)
 
     try:
         missing = await auth_policy.get_missing_permissions(user_name, permissions)
