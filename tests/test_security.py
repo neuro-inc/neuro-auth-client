@@ -1,8 +1,8 @@
 import pytest
-
-from neuro_auth_client.security import IdentityPolicy, AuthScheme
-from aiohttp.test_utils import make_mocked_request
 from aiohttp import BasicAuth
+from aiohttp.test_utils import make_mocked_request
+
+from neuro_auth_client.security import AuthScheme, IdentityPolicy
 
 
 async def test_identity_bearer() -> None:
