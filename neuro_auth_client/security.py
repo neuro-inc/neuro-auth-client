@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any, Optional, Union
 
 from aiohttp.client_exceptions import ClientResponseError
-from aiohttp.hdrs import AUTHORIZATION
+from aiohttp.hdrs import AUTHORIZATION, SEC_WEBSOCKET_PROTOCOL
 from aiohttp.helpers import BasicAuth
 from aiohttp.web import Application, Request, Response
 from aiohttp_security import AbstractAuthorizationPolicy, AbstractIdentityPolicy, setup
@@ -17,6 +17,7 @@ JWT_IDENTITY_CLAIM = "https://platform.neuromation.io/user"
 JWT_IDENTITY_CLAIM_OPTIONS = ("identity", JWT_IDENTITY_CLAIM)
 
 NEURO_AUTH_TOKEN_QUERY_PARAM = "neuro-auth-token"
+WS_BEARER = "bearer.apolo.us-"
 
 
 class AuthScheme(str, Enum):
@@ -36,9 +37,16 @@ class IdentityPolicy(AbstractIdentityPolicy):
     async def identify(self, request: Request) -> Optional[str]:
         auth_header_value = request.headers.get(AUTHORIZATION)
         auth_query_identity = request.query.get(NEURO_AUTH_TOKEN_QUERY_PARAM)
+        ws_subprotocol = request.headers.get(SEC_WEBSOCKET_PROTOCOL)
+        ws_identity = None
+        if ws_subprotocol is not None:
+            for part in ws_subprotocol.strip().split(" "):
+                if part.lower().startswith(WS_BEARER):
+                    ws_identity = part[len(WS_BEARER) :]
+                    break
 
         if auth_header_value is None:
-            return auth_query_identity or self._default_identity
+            return ws_identity or auth_query_identity or self._default_identity
 
         if self._auth_scheme == AuthScheme.BASIC:
             identity = BasicAuth.decode(auth_header_value).password
