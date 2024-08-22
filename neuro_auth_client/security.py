@@ -3,9 +3,9 @@ from enum import Enum
 from typing import Any, Optional, Union
 
 from aiohttp.client_exceptions import ClientResponseError
-from aiohttp.hdrs import AUTHORIZATION
+from aiohttp.hdrs import AUTHORIZATION, SEC_WEBSOCKET_PROTOCOL
 from aiohttp.helpers import BasicAuth
-from aiohttp.web import Application, Request, Response
+from aiohttp.web import Application, Request, StreamResponse
 from aiohttp_security import AbstractAuthorizationPolicy, AbstractIdentityPolicy, setup
 from jose import jwt
 from jose.exceptions import JWTError
@@ -17,6 +17,7 @@ JWT_IDENTITY_CLAIM = "https://platform.neuromation.io/user"
 JWT_IDENTITY_CLAIM_OPTIONS = ("identity", JWT_IDENTITY_CLAIM)
 
 NEURO_AUTH_TOKEN_QUERY_PARAM = "neuro-auth-token"
+WS_BEARER = "bearer.apolo.us-"
 
 
 class AuthScheme(str, Enum):
@@ -34,16 +35,17 @@ class IdentityPolicy(AbstractIdentityPolicy):
         self._default_identity = default_identity
 
     async def identify(self, request: Request) -> Optional[str]:
-        auth_header_value = request.headers.get(AUTHORIZATION)
-        auth_query_identity = request.query.get(NEURO_AUTH_TOKEN_QUERY_PARAM)
+        header_identity = request.headers.get(AUTHORIZATION)
 
-        if auth_header_value is None:
-            return auth_query_identity or self._default_identity
+        if header_identity is None:
+            ws_identity = self._extract_ws_identity(request)
+            query_identity = request.query.get(NEURO_AUTH_TOKEN_QUERY_PARAM)
+            return ws_identity or query_identity or self._default_identity
 
         if self._auth_scheme == AuthScheme.BASIC:
-            identity = BasicAuth.decode(auth_header_value).password
+            identity = BasicAuth.decode(header_identity).password
         else:
-            identity = BearerAuth.decode(auth_header_value).token
+            identity = BearerAuth.decode(header_identity).token
 
         return identity
 
@@ -51,17 +53,26 @@ class IdentityPolicy(AbstractIdentityPolicy):
         pass
 
     async def forget(
-        self, request: Request, response: Response
+        self, request: Request, response: StreamResponse
     ) -> None:  # pragma: no cover
         pass
+
+    def _extract_ws_identity(self, request: Request) -> str | None:
+        ws_subprotocol = request.headers.get(SEC_WEBSOCKET_PROTOCOL)
+        if ws_subprotocol is not None:
+            for part in ws_subprotocol.strip().split(" "):
+                if part.lower().startswith(WS_BEARER):
+                    ws_identity = part[len(WS_BEARER) :]
+                    return ws_identity
+        return None
 
 
 class AuthPolicy(AbstractAuthorizationPolicy):
     def __init__(self, auth_client: AuthClient) -> None:
         self._auth_client = auth_client
 
-    def get_user_name_from_identity(self, identity: str) -> Optional[str]:
-        if self._auth_client.is_anonymous_access_allowed:
+    def get_user_name_from_identity(self, identity: str | None) -> Optional[str]:
+        if identity is None or self._auth_client.is_anonymous_access_allowed:
             return "user"
 
         try:
@@ -97,9 +108,9 @@ class AuthPolicy(AbstractAuthorizationPolicy):
 
     async def permits(
         self,
-        identity: str,
-        _: str,
-        context: Sequence[Union[Permission, Sequence[Permission]]],
+        identity: str | None,
+        permission: str | Enum,
+        context: Any = None,
     ) -> bool:
         name = self.get_user_name_from_identity(identity)
         if not name:
