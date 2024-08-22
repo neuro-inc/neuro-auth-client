@@ -35,23 +35,17 @@ class IdentityPolicy(AbstractIdentityPolicy):
         self._default_identity = default_identity
 
     async def identify(self, request: Request) -> Optional[str]:
-        auth_header_value = request.headers.get(AUTHORIZATION)
-        auth_query_identity = request.query.get(NEURO_AUTH_TOKEN_QUERY_PARAM)
-        ws_subprotocol = request.headers.get(SEC_WEBSOCKET_PROTOCOL)
-        ws_identity = None
-        if ws_subprotocol is not None:
-            for part in ws_subprotocol.strip().split(" "):
-                if part.lower().startswith(WS_BEARER):
-                    ws_identity = part[len(WS_BEARER) :]
-                    break
+        header_identity = request.headers.get(AUTHORIZATION)
 
-        if auth_header_value is None:
-            return ws_identity or auth_query_identity or self._default_identity
+        if header_identity is None:
+            ws_identity = self._extract_ws_identity(request)
+            query_identity = request.query.get(NEURO_AUTH_TOKEN_QUERY_PARAM)
+            return ws_identity or query_identity or self._default_identity
 
         if self._auth_scheme == AuthScheme.BASIC:
-            identity = BasicAuth.decode(auth_header_value).password
+            identity = BasicAuth.decode(header_identity).password
         else:
-            identity = BearerAuth.decode(auth_header_value).token
+            identity = BearerAuth.decode(header_identity).token
 
         return identity
 
@@ -62,6 +56,15 @@ class IdentityPolicy(AbstractIdentityPolicy):
         self, request: Request, response: StreamResponse
     ) -> None:  # pragma: no cover
         pass
+
+    def _extract_ws_identity(self, request: Request) -> str | None:
+        ws_subprotocol = request.headers.get(SEC_WEBSOCKET_PROTOCOL)
+        if ws_subprotocol is not None:
+            for part in ws_subprotocol.strip().split(" "):
+                if part.lower().startswith(WS_BEARER):
+                    ws_identity = part[len(WS_BEARER) :]
+                    return ws_identity
+        return None
 
 
 class AuthPolicy(AbstractAuthorizationPolicy):
