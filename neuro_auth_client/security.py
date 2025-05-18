@@ -15,6 +15,7 @@ from .client import AuthClient, Permission, User
 
 JWT_IDENTITY_CLAIM = "https://platform.neuromation.io/user"
 JWT_IDENTITY_CLAIM_OPTIONS = ("identity", JWT_IDENTITY_CLAIM)
+JWT_KIND_CLAIM = "https://platform.neuromation.io/kind"
 
 NEURO_AUTH_TOKEN_QUERY_PARAM = "neuro-auth-token"
 WS_BEARER = "bearer.apolo.us-"
@@ -23,6 +24,12 @@ WS_BEARER = "bearer.apolo.us-"
 class AuthScheme(str, Enum):
     BASIC = "basic"
     BEARER = "bearer"
+
+
+class Kind(str, Enum):
+    CONTROL_PLANE = "control_plane"
+    CLUSTER = "cluster"
+    USER = "user"
 
 
 class IdentityPolicy(AbstractIdentityPolicy):
@@ -105,6 +112,13 @@ class AuthPolicy(AbstractAuthorizationPolicy):
         if user:
             return user.name
         return None
+
+    def get_kind(self, identity: str) -> Kind:
+        try:
+            claims = jwt.get_unverified_claims(identity)
+            return Kind(claims.get(JWT_KIND_CLAIM, Kind.USER))
+        except JWTError:
+            return Kind.USER
 
     async def permits(
         self,
