@@ -5,10 +5,10 @@ from typing import Union
 
 from aiohttp import ClientError, web
 from aiohttp_security import check_authorized
-from aiohttp_security.api import AUTZ_KEY
+from aiohttp_security.api import AUTZ_KEY, IDENTITY_KEY
 
 from .client import Permission
-from .security import AuthPolicy
+from .security import AuthPolicy, Kind
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,24 @@ async def check_permissions(
         raise web.HTTPForbidden(
             text=json.dumps(payload), content_type="application/json"
         )
+
+
+async def get_user_and_kind(request: web.Request) -> tuple[str, Kind]:
+    identity_policy = request.config_dict.get(IDENTITY_KEY)
+    if not identity_policy:
+        raise RuntimeError("Identity policy not configured")
+    auth_policy = request.config_dict.get(AUTZ_KEY)
+    if not auth_policy:
+        raise RuntimeError("Auth policy not configured")
+    assert isinstance(auth_policy, AuthPolicy)
+    identity = await identity_policy.identify(request)
+    if identity is None:
+        raise web.HTTPUnauthorized()
+    userid = await auth_policy.authorized_userid(identity)
+    if userid is None:
+        raise web.HTTPUnauthorized()
+    kind = auth_policy.get_kind(identity)
+    return userid, kind
 
 
 def _permission_to_primitive(perm: Permission) -> dict[str, str]:
