@@ -46,7 +46,7 @@ async def get_user_and_kind(request: web.Request) -> tuple[str, Kind]:
     identity = await identity_policy.identify(request)
     if identity is None:
         raise web.HTTPUnauthorized()
-    userid = auth_policy.authorized_userid(identity)
+    userid = await auth_policy.authorized_userid(identity)
     if userid is None:
         raise web.HTTPUnauthorized()
     kind = auth_policy.get_kind(identity)
