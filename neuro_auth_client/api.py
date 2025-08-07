@@ -1,7 +1,9 @@
+import dataclasses
 import json
 import logging
 from collections.abc import Sequence
 from typing import Union
+from warnings import deprecated
 
 from aiohttp import ClientError, web
 from aiohttp_security import check_authorized
@@ -35,7 +37,20 @@ async def check_permissions(
         )
 
 
+@dataclasses.dataclass
+class User:
+    userid: str
+    kind: Kind
+    cluster: str | None  # non if kind != Kind.CLUSTER
+
+
+@deprecated("Use get_user() instead")
 async def get_user_and_kind(request: web.Request) -> tuple[str, Kind]:
+    user = await get_user(request)
+    return user.userid, user.kind
+
+
+async def get_user(request: web.Request) -> tuple[str, Kind]:
     identity_policy = request.config_dict.get(IDENTITY_KEY)
     if not identity_policy:
         raise RuntimeError("Identity policy not configured")
@@ -50,7 +65,8 @@ async def get_user_and_kind(request: web.Request) -> tuple[str, Kind]:
     if userid is None:
         raise web.HTTPUnauthorized()
     kind = auth_policy.get_kind(identity)
-    return userid, kind
+    cluster = kind.get_cluster(identity) if kind is Kind.CLUSTER else None
+    return User(userid, kind, cluster)
 
 
 def _permission_to_primitive(perm: Permission) -> dict[str, str]:
