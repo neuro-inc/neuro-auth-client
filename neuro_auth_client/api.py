@@ -50,7 +50,7 @@ async def get_user_and_kind(request: web.Request) -> tuple[str, Kind]:
     return user.userid, user.kind
 
 
-async def get_user(request: web.Request) -> tuple[str, Kind]:
+async def get_user(request: web.Request) -> User:
     identity_policy = request.config_dict.get(IDENTITY_KEY)
     if not identity_policy:
         raise RuntimeError("Identity policy not configured")
@@ -65,7 +65,7 @@ async def get_user(request: web.Request) -> tuple[str, Kind]:
     if userid is None:
         raise web.HTTPUnauthorized()
     kind = auth_policy.get_kind(identity)
-    cluster = kind.get_cluster(identity) if kind is Kind.CLUSTER else None
+    cluster = auth_policy.get_cluster(identity) if kind is Kind.CLUSTER else None
     return User(userid, kind, cluster)
 
 
