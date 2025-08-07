@@ -3,7 +3,6 @@ import json
 import logging
 from collections.abc import Sequence
 from typing import Union
-from warnings import deprecated
 
 from aiohttp import ClientError, web
 from aiohttp_security import check_authorized
@@ -44,8 +43,8 @@ class User:
     cluster: str | None  # non if kind != Kind.CLUSTER
 
 
-@deprecated("Use get_user() instead")
 async def get_user_and_kind(request: web.Request) -> tuple[str, Kind]:
+    # Deprecated, user get_user() instead
     user = await get_user(request)
     return user.userid, user.kind
 
