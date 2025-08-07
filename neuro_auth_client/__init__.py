@@ -2,7 +2,7 @@
 
 from importlib.metadata import version
 
-from .api import check_permissions, get_user_and_kind
+from .api import check_permissions, get_user, get_user_and_kind
 from .client import (
     Action,
     AuthClient,
@@ -12,18 +12,29 @@ from .client import (
     Role,
     User,
 )
-from .security import Kind
+from .security import (
+    JWT_CLUSTER_CLAIM,
+    JWT_IDENTITY_CLAIM,
+    JWT_KIND_CLAIM,
+    IdentityError,
+    Kind,
+)
 
 __all__ = [
     "Action",
     "AuthClient",
     "ClientAccessSubTreeView",
     "ClientSubTreeViewRoot",
+    "JWT_IDENTITY_CLAIM",
+    "JWT_KIND_CLAIM",
+    "JWT_CLUSTER_CLAIM",
+    "IdentityError",
     "Kind",
     "Permission",
     "Role",
     "User",
     "check_permissions",
+    "get_user",
     "get_user_and_kind",
 ]
 __version__ = version(__package__)
