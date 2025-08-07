@@ -12,7 +12,13 @@ from .client import (
     Role,
     User,
 )
-from .security import Kind
+from .security import (
+    JWT_CLUSTER_CLAIM,
+    JWT_IDENTITY_CLAIM,
+    JWT_KIND_CLAIM,
+    IdentityError,
+    Kind,
+)
 
 __all__ = [
     "Action",
@@ -25,5 +31,9 @@ __all__ = [
     "User",
     "check_permissions",
     "get_user_and_kind",
+    "JWT_IDENTITY_CLAIM",
+    "JWT_KIND_CLAIM",
+    "JWT_CLUSTER_CLAIM",
+    "IdentityError",
 ]
 __version__ = version(__package__)
