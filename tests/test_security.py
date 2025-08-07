@@ -6,10 +6,12 @@ from aiohttp.test_utils import make_mocked_request
 from jose import jwt
 
 from neuro_auth_client.security import (
+    JWT_CLUSTER_CLAIM,
     JWT_IDENTITY_CLAIM,
     JWT_KIND_CLAIM,
     AuthPolicy,
     AuthScheme,
+    IdentityError,
     IdentityPolicy,
     Kind,
 )
@@ -104,7 +106,7 @@ async def test_identity_precedence(
     assert await ip.identify(req) == token
 
 
-def test_kind() -> None:
+def test_get_kind() -> None:
     identity = jwt.encode(
         {JWT_IDENTITY_CLAIM: "test", JWT_KIND_CLAIM: Kind.CLUSTER}, "secret"
     )
@@ -112,7 +114,40 @@ def test_kind() -> None:
     assert auth_policy.get_kind(identity) == Kind.CLUSTER
 
 
-def test_default() -> None:
+def test_get_kind_default() -> None:
     identity = jwt.encode({JWT_IDENTITY_CLAIM: "test"}, "secret")
     auth_policy = AuthPolicy(Mock())
     assert auth_policy.get_kind(identity) == Kind.USER
+
+
+def test_get_cluster() -> None:
+    identity = jwt.encode(
+        {
+            JWT_IDENTITY_CLAIM: "test",
+            JWT_KIND_CLAIM: "cluster",
+            JWT_CLUSTER_CLAIM: "cl1",
+        },
+        "secret",
+    )
+    auth_policy = AuthPolicy(Mock())
+    assert auth_policy.get_cluster(identity) == "cl1"
+
+
+def test_get_cluster_invalid_kind() -> None:
+    identity = jwt.encode(
+        {JWT_IDENTITY_CLAIM: "test", JWT_KIND_CLAIM: "user", JWT_CLUSTER_CLAIM: "cl1"},
+        "secret",
+    )
+    auth_policy = AuthPolicy(Mock())
+    with pytest.raises(IdentityError, match="^identity has unexpected kind"):
+        auth_policy.get_cluster(identity)
+
+
+def test_get_cluster_invalid_claim() -> None:
+    identity = jwt.encode(
+        {JWT_IDENTITY_CLAIM: "test", JWT_KIND_CLAIM: "cluster", JWT_CLUSTER_CLAIM: ""},
+        "secret",
+    )
+    auth_policy = AuthPolicy(Mock())
+    with pytest.raises(IdentityError, match="^identity has kind 'cluster', but"):
+        auth_policy.get_cluster(identity)

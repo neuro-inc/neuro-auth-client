@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Optional, Union
 
 from aiohttp.client_exceptions import ClientResponseError
@@ -16,20 +16,26 @@ from .client import AuthClient, Permission, User
 JWT_IDENTITY_CLAIM = "https://platform.neuromation.io/user"
 JWT_IDENTITY_CLAIM_OPTIONS = ("identity", JWT_IDENTITY_CLAIM)
 JWT_KIND_CLAIM = "https://platform.neuromation.io/kind"
+# exists only for tokens of cluster services
+JWT_CLUSTER_CLAIM = "https://platform.neuromation.io/cluster"
 
 NEURO_AUTH_TOKEN_QUERY_PARAM = "neuro-auth-token"
 WS_BEARER = "bearer.apolo.us-"
 
 
-class AuthScheme(str, Enum):
+class AuthScheme(StrEnum):
     BASIC = "basic"
     BEARER = "bearer"
 
 
-class Kind(str, Enum):
+class Kind(StrEnum):
     CONTROL_PLANE = "control_plane"
     CLUSTER = "cluster"
     USER = "user"
+
+
+class IdentityError(ValueError):
+    """Identity error"""
 
 
 class IdentityPolicy(AbstractIdentityPolicy):
@@ -119,6 +125,20 @@ class AuthPolicy(AbstractAuthorizationPolicy):
             return Kind(claims.get(JWT_KIND_CLAIM, Kind.USER))
         except JWTError:
             return Kind.USER
+
+    def get_cluster(self, identity: str) -> str:
+        claims = jwt.get_unverified_claims(identity)
+        kind = claims.get(JWT_KIND_CLAIM, Kind.USER)
+        if kind != Kind.CLUSTER:
+            raise IdentityError(
+                f"identity has unexpected kind '{kind}', expected 'cluster'"
+            )
+        ret = claims.get(JWT_CLUSTER_CLAIM)
+        if not ret:
+            raise IdentityError(
+                f"identity has kind 'cluster', but has no {JWT_CLUSTER_CLAIM} claim"
+            )
+        return ret
 
     async def permits(
         self,
