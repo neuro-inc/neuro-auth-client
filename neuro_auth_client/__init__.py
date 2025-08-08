@@ -2,7 +2,7 @@
 
 from importlib.metadata import version
 
-from .api import check_permissions, get_user, get_user_and_kind
+from .api import UserInfo, check_permissions, get_user, get_user_and_kind
 from .client import (
     Action,
     AuthClient,
@@ -33,6 +33,7 @@ __all__ = [
     "Permission",
     "Role",
     "User",
+    "UserInfo",
     "check_permissions",
     "get_user",
     "get_user_and_kind",
