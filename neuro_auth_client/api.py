@@ -36,7 +36,7 @@ async def check_permissions(
         )
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class UserInfo:
     userid: str
     kind: Kind
