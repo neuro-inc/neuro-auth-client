@@ -8,12 +8,6 @@ repos:
   rev: v1.5.0
   hooks:
   - id: yesqa
-- repo: https://github.com/sondrelg/pep585-upgrade
-  rev: v1.0
-  hooks:
-  - id: upgrade-type-hints
-    args:
-    - --futures=true
 - repo: https://github.com/Zac-HD/shed
   rev: 2025.6.1
   hooks:
@@ -24,6 +18,11 @@ repos:
     - python
     - markdown
     - rst
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.16.6
+  hooks:
+  - id: ruff-check
+    args: [--select, "UP006,UP035", --target-version, py39]
 - repo: https://github.com/PyCQA/flake8
   rev: 7.3.0
   hooks:
