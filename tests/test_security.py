@@ -1,7 +1,7 @@
+from base64 import b64encode
 from unittest.mock import Mock
 
 import pytest
-from aiohttp import BasicAuth
 from aiohttp.test_utils import make_mocked_request
 from jose import jwt
 
@@ -36,8 +36,8 @@ async def test_identity_default() -> None:
 
 
 async def test_identity_basic() -> None:
-    auth = BasicAuth("user", "passwd")
-    req = make_mocked_request("GET", "/path", {"Authorization": auth.encode()})
+    header = "Basic " + b64encode(b"user:passwd").decode()
+    req = make_mocked_request("GET", "/path", {"Authorization": header})
     ip = IdentityPolicy(AuthScheme.BASIC)
     assert await ip.identify(req) == "passwd"
 
