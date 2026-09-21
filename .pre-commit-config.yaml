@@ -19,7 +19,7 @@ repos:
     - markdown
     - rst
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.16.6
+  rev: v0.16.8
   hooks:
   - id: ruff-check
     args: [--select, "UP006,UP035", --target-version, py39]
@@ -60,7 +60,7 @@ repos:
     - -ignore
     - 'SC1004:'
 - repo: https://github.com/sirosen/check-jsonschema
-  rev: 0.37.2
+  rev: 0.38.0
   hooks:
   - id: check-github-actions
 ci:
